@@ -1,0 +1,273 @@
+---
+title: "30DayChartChallenge"
+subtitle: "Day 11: relationships"
+author: "María Hdez. Aguilar"
+date: "`r Sys.Date()`"
+output: rmdformats::readthedown
+highlight: tango
+---
+
+*Libraries*
+```{r, warning=F, message=F, echo=FALSE}
+library(tidyverse)
+library(janitor)
+library(hrbrthemes)
+library(ggthemes)
+library(ggplot2)
+library(RColorBrewer)
+library(gridExtra)
+```
+
+*Dataset*
+```{r}
+data <- read_csv("spotify_taylorswift.csv")
+
+data_red <- data %>% janitor::clean_names() %>%
+  select(name, album, popularity, energy, valence, release_date) %>%
+  filter(popularity!=0)
+```
+
+*Adding personalized colors to each album*
+```{r}
+group_colors <- c(
+  "Taylor Swift" = "#2b9e4a", 
+  "Speak Now (Deluxe Package)" = "#9a4d88",
+  "Red (Deluxe Edition)" = "#C0272D", 
+  "1989 (Deluxe)" = "#68b7c6", 
+  "reputation" = "#89817c",
+  "Lover" = "#FCA6C8",
+  "folklore (deluxe version)" = "#acb5bd",
+  "evermore (deluxe version)" = "chocolate", 
+  "Fearless (Taylor's Version)" = "darkgoldenrod1")
+```
+
+
+*Reduced dataset with only the TOP5*
+```{r}
+data_5 <- data %>%
+  janitor::clean_names() %>%
+  select(name, album, popularity, energy, valence, release_date) %>%
+  filter(popularity != 0) %>%
+  arrange(album, desc(popularity)) %>%  
+  group_by(album) %>%
+  slice_head(n = 5) %>%
+  mutate(new_popularity = ifelse(popularity >= 50 & popularity <= 65, 1,
+                                 ifelse(popularity >= 66 & popularity <= 75, 2, 3)))
+
+
+# Filter the dataset to remove rows songs from Fearless (it's the album with the most overlapping in the final graph)
+data_rest <- data_5 %>%
+  filter(album !="Fearless (Taylor's Version)") 
+
+# Create a vector of names to remove other song that overlap 
+remove_names <- c("exile (feat. Bon Iver)", "Ours", "Should've Said No", "cardigan", "Blank Space")
+
+# Filter the dataset to remove rows with those names
+data_rest <- data_5 %>%
+  filter(album != "Fearless (Taylor's Version)" & !name %in% remove_names)
+```
+
+
+*Edit the labels of every song that is either overlapping or too long* 
+```{r}
+#ME! (feat. Brendon Urie of Panic! At The Disco)
+data_rest$name[8] <- "ME! (feat. B.U.)"
+
+#Teardrops On My Guitar - Radio Single Remix
+data_rest$name[19] <- "Teardrops On My Guitar\n(Radio Single Remix)"
+
+#We Are Never Ever Getting Back Together 
+data_rest$name[13] <- "We Are Never Ever Getting\nBack Together"
+
+#it’s time to go - bonus track
+data_rest$name[25] <- "it’s time to go\nbonus track"
+
+#champagne problems
+data_rest$name[24] <- "champagne\nproblems"
+
+#Look What You Made Me Do
+data_rest$name[32] <- "Look What You\nMade Me Do"
+
+#right where you left me
+data_rest$name[23] <- "right where\nyou left me"
+
+#If this was a movie
+data_rest$name[18] <- "If This Was\nA Movie"
+
+#Out Of The Woods
+data_rest$name[3] <- "Out Of\nThe Woods"
+
+#The Story Of Us
+data_rest$name[17] <- "The Story\nOf Us"
+
+#I Knew You Were Trouble
+data_rest$name[12] <- "I Knew You\nWere Trouble"
+```
+
+*Sort albums in the legend* 
+```{r}
+color_order <- c("Taylor Swift", 
+                 "Speak Now (Deluxe Package)", 
+                 "Red (Deluxe Edition)", 
+                 "1989 (Deluxe)", 
+                 "reputation",
+                 "Lover",
+                 "folklore (deluxe version)",
+                 "evermore (deluxe version)", 
+                 "Fearless (Taylor's Version)")
+```
+
+*Final graph*
+```{r}
+taylor2 <- ggplot(data_5, aes(x=energy, y=valence, 
+                              size = as.factor(new_popularity), color=album)) +
+    
+  geom_point(aes(group=album), 
+             alpha=0.5, stroke = 1) + 
+  
+  labs(x="", y="", 
+       caption="Data Visualization: María Hdez. (@elirmaraia)\nSource: Kaggle, from Jan Llenzl Dagohoy \n#30DayChartChallenge | Day 13 | Relationships: Pop Culture") +
+  
+  scale_color_manual(values = group_colors, 
+                     limits=color_order) +
+  
+  geom_text(data=data_rest, aes(label = name, y = valence, color=album),
+             size = 13, hjust=0.5, vjust=0.5, alpha=1) +
+  
+  scale_x_continuous(expand = c(0.05, 0), 
+                     minor_breaks = NULL) +
+  
+  theme_minimal() + 
+  theme(legend.position = c(0.20, 0.55), 
+        legend.title=element_text(size = 25, face = "bold"), 
+        legend.text=element_text(size=30), 
+        legend.box="horizontal",
+        plot.margin = unit(c(1, 1, 1, 1), "cm"), 
+        axis.text = element_text(size = 23), 
+        plot.caption = element_text(colour = "black", size=27, 
+                                    family = "sans-serif", hjust=0.5, face="italic")) +
+  
+  guides(color = guide_legend(title = NULL, 
+                            override.aes = list(size=18, alpha = 1),
+                             ncol = 1, hjust=0.5)) + 
+  
+  scale_size_manual(values = c(40, 55, 70), 
+                    name = "Popularity on Spotify",
+                    guide = guide_legend(override.aes = list(color = "#9a4d88")), 
+                    labels=NULL) +
+
+
+  annotate("text", x = 0.28, y = 0.92, label = "We Are Never Ever Getting Bored:\nExploring the Emotional Range of Taylor's Discography", 
+       size = 26, family = "IM Fell DW Pica", color = "black") +
+  
+    annotate("text", x = 0.28, y = 0.80, label = "The graph displays the top 5 most popular songs\nfrom each album on Spotify, reflecting the relationship between\nthe intensity and emotion of each song", 
+       size = 22, family = "IM Fell DW Pica", color = "#969696") +
+  
+  annotate("text", x = 0.78, y = 0.03, label = "Intensity and activity\n(min - max)", 
+       size = 16,  family = "IM Fell DW Pica", color = "black") +
+  
+  annotate("text", x = 0.01, y = 0.2, label = "How sad or happy the song sounds", 
+       size = 16,  family = "IM Fell DW Pica", color = "black", angle=90) +
+  
+  geom_segment(aes(x = 0.03, y = 0.10, xend = 0.03, yend = 0.08),
+                 arrow = arrow(length = unit(0.4, "cm")),
+                 color = "black", size = 2) + 
+  
+  geom_segment(aes(x = 0.03, y = 0.10, xend = 0.03, yend = 0.22),
+                 arrow = arrow(length = unit(0.4, "cm")),
+                 color = "black", size = 2) +
+
+## Annotates for the happiest and most slowpaced song
+  annotate("text", x = 0.89, y = 0.9, label = "Taylor's\nhappiest song", 
+       size = 16,  family = "IM Fell DW Pica", color = "black") +
+  
+           geom_curve(aes(x = 0.86, y = 0.86, xend = 0.8, yend = 0.9),
+           curvature = -0.4, arrow = arrow(length = unit(0.4, "cm")),
+           color = "black", size = 2) +
+
+  annotate("text", x = 0.17, y = 0.17, label = "Taylor's most\nslow-paced song", 
+       size = 16,  family = "IM Fell DW Pica", color = "black") +
+  
+           geom_curve(aes(x = 0.17, y = 0.2, xend = 0.2, yend = 0.3),
+           curvature = -0.4, arrow = arrow(length = unit(0.4, "cm")),
+           color = "black", size = 2) +
+
+## Annotates for Fearless (album)
+  annotate("text", x = 0.91, y = 0.69, label = "Mr. Perfectly\nFine", 
+          size = 13,  family = "Times New Roman", color = "darkgoldenrod1") +
+  
+           geom_curve(aes(x = 0.89, y = 0.69, xend = 0.83, yend = 0.69),
+           curvature = -0.4, arrow = arrow(length = unit(0.4, "cm")),
+           color = "darkgoldenrod1", size = 2) +
+  
+  annotate("text", x = 0.85, y = 0.39, label = "Love\nStory", 
+          size = 13,  family = "Times New Roman", color = "darkgoldenrod1") +
+  
+           geom_curve(aes(x = 0.83, y = 0.38, xend = 0.80, yend = 0.40),
+           curvature = -0.4, arrow = arrow(length = unit(0.4, "cm")),
+           color = "darkgoldenrod1", size = 2)  +
+  
+  annotate("text", x = 0.78, y = 0.35, label = "Fearless", 
+          size = 13,  family = "Times New Roman", color = "darkgoldenrod1") +
+  
+           geom_curve(aes(x = 0.75, y = 0.35, xend = 0.73, yend = 0.40),
+           curvature = -0.4, arrow = arrow(length = unit(0.4, "cm")),
+           color = "darkgoldenrod1", size = 2) +
+  
+  annotate("text", x = 0.82, y = 0.55, label = "You Belong\nWith Me", 
+          size = 13,  family = "Times New Roman", color = "darkgoldenrod1") +
+  
+           geom_curve(aes(x = 0.79, y = 0.55, xend = 0.77, yend = 0.52),
+           curvature = 0.4, arrow = arrow(length = unit(0.4, "cm")),
+           color = "darkgoldenrod1", size = 2) +
+  
+  annotate("text", x = 0.69, y = 0.42, label = "The Way I\nLoved You", 
+          size = 12,  family = "Times New Roman", color = "darkgoldenrod1") +
+  
+           geom_curve(aes(x = 0.70, y = 0.44, xend = 0.72, yend = 0.46),
+           curvature = -0.4, arrow = arrow(length = unit(0.4, "cm")),
+           color = "darkgoldenrod1", size = 2) +
+  
+  ##Anotaciones para el resto de canciones
+  annotate("text", x = 0.43, y = 0.13, label = "exile (feat.\nBon Iver)", 
+          size = 13,  family = "Times New Roman", color = "#89817c") +
+  
+           geom_curve(aes(x = 0.41, y = 0.13, xend = 0.38, yend = 0.15),
+           curvature = -0.4, arrow = arrow(length = unit(0.4, "cm")),
+           color = "#89817c", size = 2) +
+  
+   annotate("text", x = 0.59, y = 0.14, label = "Ours", 
+           size = 13,  family = "Times New Roman", color = "#9a4d88") +
+  
+           geom_curve(aes(x = 0.57, y = 0.14, xend = 0.56, yend = 0.18),
+           curvature = -0.4, arrow = arrow(length = unit(0.4, "cm")),
+           color = "#9a4d88", size = 2) +
+  
+   annotate("text", x = 0.87, y = 0.46, label = "Should've\nSaid No", 
+           size = 13,  family = "Times New Roman", color = "#2b9e4a") +
+  
+           geom_curve(aes(x = 0.84, y = 0.46, xend = 0.78, yend = 0.46),
+           curvature = -0.4, arrow = arrow(length = unit(0.4, "cm")),
+           color = "#2b9e4a", size = 2) +
+  
+   annotate("text", x = 0.6, y = 0.58, label = "cardigan", 
+           size = 13,  family = "Times New Roman", color = "#89817c") +
+  
+           geom_curve(aes(x = 0.61, y = 0.57, xend = 0.60, yend = 0.55),
+           curvature = -0.4, arrow = arrow(length = unit(0.4, "cm")),
+           color = "#89817c", size = 2) +
+    
+  annotate("text", x = 0.76, y = 0.62, label = "Blank\nSpace", 
+          size = 13,  family = "Times New Roman", color = "#68b7c6") +
+  
+           geom_curve(aes(x = 0.74, y = 0.62, xend = 0.70, yend = 0.59),
+           curvature = 0.4, arrow = arrow(length = unit(0.4, "cm")),
+           color = "#68b7c6", size = 2) 
+
+ggsave(file = "taylor_top5.png", plot=taylor2, bg="white", width = 40, height = 33)
+```
+
+
+
+
+
